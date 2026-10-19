@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Manajemen Koperasi Simpan Pinjam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-receipt, #printable-receipt * {
+                visibility: visible;
+            }
+            #printable-receipt {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 15px;
+                background: white;
+                color: black;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        .receipt-table th, .receipt-table td {
+            border: 1px solid #333;
+            padding: 6px 8px;
+            font-size: 13px;
+        }
+        .receipt-table-header {
+            background-color: #f3f4f6 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+    <!-- MANDATORY LOGIN GATEWAY SCREEN -->
+    <div id="login-screen" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 border border-slate-200 transition-all transform scale-100">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-white-100 text-brand-700 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                    <img src="logoksp.png?w=50&auto=format&fit=crop&q=50">
+                    <!--<i class="fa-solid fa-hand-holding-dollar text-3xl text-brand-600"></i>-->
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">S I M A K S A P I</h2>
+                <p class="text-xs text-slate-500 mt-1">Sistem Manajemen Koperasi Simpan Pinjam </p>
+            </div>
+
+            <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Username Admin</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <input type="text" id="login-username" required autocomplete="username" placeholder="Masukkan username" class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Password</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                            <i class="fa-solid fa-key"></i>
+                        </span>
+                        <input type="password" id="login-password" required autocomplete="current-password" placeholder="Masukkan password" class="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition text-sm">
+                        <button type="button" onclick="togglePasswordVisibility('login-password', 'toggle-pwd-icon')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
+                            <i class="fa-solid fa-eye" id="toggle-pwd-icon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-xl shadow-lg shadow-brand-600/30 transition duration-200 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        <span>Masuk Aplikasi</span>
+                    </button>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-xs text-slate-500 text-center mt-4">
+                    Created by <strong class="text-slate-700">Abah Ocoy</strong> | Aplikasi KSP <strong class="text-slate-700">Ver. 1.0</strong>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APPLICATION DASHBOARD (Hidden until login) -->
+    <div id="app-wrapper" class="hidden min-h-screen flex flex-col">
+        <!-- HEADER -->
+        <header class="bg-slate-500 text-white shadow-md no-print">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-white/10 p-2 rounded-lg">
+                        <i class="fa-solid fa-hand-holding-dollar text-2xl text-amber-400"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold leading-tight">Koperasi Simpan Pinjam</h1>
+                        <p class="text-xs text-brand-100"> Laporan Transaksi Keuangan</p>
+                    </div>
+                </div>
+                
+                <div id="user-header-info" class="flex items-center gap-3">
+                    <span id="current-user-badge" class="inline-block text-xs bg-cyan-600 text-white-500 px-3 py-1.5 rounded-full border border-cyan-600/30">
+                        <i class="fa-solid fa-user-shield mr-1"></i> Admin: <strong id="admin-status-display">Admin Utama</strong>
+                    </span>
+                    <!--<button id="btn-sync-action" onclick="syncToGoogleSheets()" class="text-xs bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Sync Google Sheets</span>
+                    </button>-->
+                    <button id="btn-auth-action" onclick="handleLogout()" class="text-xs bg-red-600 hover:bg-red-700 text-white font-medium px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+
+            <!-- CONTROL BAR -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col lg:flex-row gap-4 items-center justify-between no-print">
+                
+                <!-- NAVIGATION TABS -->
+                <div class="flex flex-wrap bg-slate-100 p-1 rounded-xl w-full lg:w-auto">
+                    <button id="tab-btn-report" onclick="switchTab('report')" class="flex-1 lg:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition bg-white text-brand-700 shadow-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Laporan / Struk
+                    </button>
+                    <button id="tab-btn-members" onclick="switchTab('members')" class="flex-1 lg:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-users"></i> Data Anggota
+                    </button>
+                    <button id="tab-btn-groups" onclick="switchTab('groups')" class="flex-1 lg:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-layer-group"></i> Kelompok
+                    </button>
+                    <button id="tab-btn-admins" onclick="switchTab('admins')" class="flex-1 lg:flex-none px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-user-gear"></i> Kelola Admin
+                    </button>
+                </div>
+
+                <!-- GROUP FILTER DROPDOWN -->
+                <div class="flex items-center gap-3 w-full lg:w-auto justify-end">
+                    <label for="filter-group" class="text-xs font-bold text-slate-600 whitespace-nowrap flex items-center gap-1.5">
+                        <i class="fa-solid fa-filter text-brand-600"></i> Kelompok Anggota:
+                    </label>
+                    <select id="filter-group" onchange="handleGroupFilterChange()" class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl focus:ring-brand-500 focus:border-brand-500 block p-2.5 min-w-[200px] font-medium transition shadow-sm outline-none">
+                        <option value="ALL">-- Semua Kelompok --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- VIEW: REPORT & RECEIPT -->
+            <section id="view-report" class="space-y-6">
+                
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center no-print">
+                    <div class="flex items-center gap-3 w-full md:w-auto">
+                        <label for="select-member-report" class="text-xs font-bold text-slate-600 whitespace-nowrap">Pilih Anggota:</label>
+                        <select id="select-member-report" onchange="renderMemberReceipt()" class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl focus:ring-brand-500 focus:border-brand-500 block w-full md:w-80 p-2.5 font-semibold outline-none">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                        <button onclick="openInstallmentModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold text-sm px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-circle-plus"></i> + Input Angsuran
+                        </button>
+                        <button onclick="window.print()" class="bg-cyan-600 hover:bg-cyan-800 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-print"></i> Cetak / Simpan PDF
+                        </button>
+                        <button onclick="syncToGoogleSheets()" class="bg-brand-600 hover:bg-brand-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Simpan Data
+                        </button>
+                    </div>
+                </div>
+
+                <!-- RECEIPT CONTAINER -->
+                <div class="bg-white rounded-2xl shadow-md border border-slate-200 p-6 md:p-10 transition" id="printable-receipt">
+                    
+                    <div class="text-center mb-6 pb-4 border-b border-slate-300">
+                        <h2 class="text-xl md:text-2xl font-bold uppercase tracking-wide text-slate-900">KOPERASI SIMPAN PINJAM (KSP)</h2>
+                        <p class="text-xs text-slate-500 mt-1">LEMBAR ANGSURAN DAN LAPORAN TRANSAKSI ANGGOTA</p>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full receipt-table border-collapse text-left text-slate-800">
+                            <tbody>
+                                <!-- ROW 1: No Anggota & Jml Pinjaman -->
+                                <tr>
+                                    <td class="font-semibold w-[15%]">No. Anggota</td>
+                                    <td class="w-[2%] text-center">:</td>
+                                    <td id="r-no-anggota" class="font-bold text-brand-800 w-[33%]">-</td>
+                                    <td class="font-semibold w-[18%]">Jml Pinjaman</td>
+                                    <td class="w-[2%] text-center">:</td>
+                                    <td id="r-jml-pinjaman" class="font-bold text-right w-[30%]">Rp 0</td>
+                                </tr>
+                                <!-- ROW 2: Nama & Tenor -->
+                                <tr>
+                                    <td class="font-semibold">Nama</td>
+                                    <td class="text-center">:</td>
+                                    <td id="r-nama" class="font-bold">-</td>
+                                    <td class="font-semibold">Tenor</td>
+                                    <td class="text-center">:</td>
+                                    <td id="r-tenor" class="font-bold text-right">0 Bulan</td>
+                                </tr>
+                                <!-- ROW 3: Blank & Bunga/perbulan -->
+                                <tr>
+                                    <td>&nbsp;</td>
+                                    <td>&nbsp;</td>
+                                    <td>&nbsp;</td>
+                                    <td class="font-semibold">Bunga/perbulan</td>
+                                    <td class="text-center">:</td>
+                                    <td id="r-bunga-bulan" class="font-bold text-right">0 %</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- TABLE ANGSURAN DETAIL -->
+                        <table class="w-full receipt-table border-collapse text-left text-slate-800 mt-4">
+                            <thead>
+                                <tr class="receipt-table-header text-center font-bold">
+                                    <th class="w-[12%] py-2">Angsuran Ke</th>
+                                    <th class="w-[18%] py-2">Tgl Angsuran</th>
+                                    <th class="w-[23%] py-2">Jumlah Angsuran</th>
+                                    <th class="w-[22%] py-2">Bunga Pinjaman</th>
+                                    <th class="w-[25%] py-2">Sisa pinjaman</th>
+                                </tr>
+                            </thead>
+                            <tbody id="r-angsuran-body">
+                                <tr>
+                                    <td colspan="5" class="text-center py-6 text-slate-400 italic">Belum ada transaksi angsuran. Klik "+ Input Angsuran (Admin)" untuk mencatat pembayaran.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- SIGNATURE & LOCATION SECTION -->
+                        <table class="w-full border-none mt-8">
+                            <tbody>
+                                <tr class="text-center text-sm font-medium">
+                                    <td class="w-1/2 align-top pt-2">
+                                        <p class="mb-12">Anggota</p>
+                                        <p class="font-bold underline" id="r-sign-anggota">( nama anggota )</p>
+                                    </td>
+                                    <td class="w-1/2 align-top">
+                                        <p class="text-center text-xs mb-1 font-semibold pr-8" id="r-date-location">Subang, 19-10-2026</p>
+                                        <p class="mb-12">Admin</p>
+                                        <p class="font-bold underline" id="r-sign-admin">( nama admin )</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: MEMBERS MANAGEMENT -->
+            <section id="view-members" class="space-y-6 hidden no-print">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Manajemen Data Anggota</h3>
+                            <p class="text-xs text-slate-500">Kelola informasi pinjaman, tenor, dan kode kelompok anggota.</p>
+                        </div>
+                        <button onclick="openMemberModal()" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-md">
+                            <i class="fa-solid fa-user-plus"></i> Tambah Anggota
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-200 custom-scrollbar">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs uppercase bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="px-4 py-3">No. Anggota</th>
+                                    <th class="px-4 py-3">Nama Anggota</th>
+                                    <th class="px-4 py-3">Kelompok</th>
+                                    <th class="px-4 py-3">Jml Pinjaman</th>
+                                    <th class="px-4 py-3">Tenor</th>
+                                    <th class="px-4 py-3">Bunga/Bln</th>
+                                    <th class="px-4 py-3">Tgl Mulai</th>
+                                    <th class="px-4 py-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-members-body" class="divide-y divide-slate-200">
+                                <!-- JS Filled -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: GROUPS MANAGEMENT -->
+            <section id="view-groups" class="space-y-6 hidden no-print">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Daftar Kelompok Koperasi</h3>
+                            <p class="text-xs text-slate-500">Kode kelompok 3 huruf menjadi prefix otomatis pada No. Anggota (misal: SBG, BDG, JKT).</p>
+                        </div>
+                        <button onclick="openGroupModal()" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-md">
+                            <i class="fa-solid fa-folder-plus"></i> Tambah Kelompok
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-200 custom-scrollbar">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs uppercase bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="px-6 py-3">Kode Kelompok (3 Huruf)</th>
+                                    <th class="px-6 py-3">Nama Kelompok</th>
+                                    <th class="px-6 py-3">Keterangan / Wilayah</th>
+                                    <th class="px-6 py-3">Jumlah Anggota</th>
+                                    <th class="px-6 py-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-groups-body" class="divide-y divide-slate-200">
+                                <!-- JS Filled -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: ADMIN USERS MANAGEMENT (RESTRICTED TO SUPER ADMIN ONLY) -->
+            <section id="view-admins" class="space-y-6 hidden no-print">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Manajemen Pengguna Admin <span class="text-xs font-normal text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full ml-2"><i class="fa-solid fa-lock mr-1"></i> Khusus Super Admin</span></h3>
+                            <p class="text-xs text-slate-500">Hanya Admin Utama (Super Admin) yang berhak menambah, mengedit, dan mengelola pengguna admin lain.</p>
+                        </div>
+                        <button onclick="openAdminUserModal()" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-md">
+                            <i class="fa-solid fa-user-shield"></i> Tambah Admin Baru
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-slate-200 custom-scrollbar">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs uppercase bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                                <tr>
+                                    <th class="px-6 py-3">Username</th>
+                                    <th class="px-6 py-3">Nama Admin</th>
+                                    <th class="px-6 py-3">Role / Jabatan</th>
+                                    <th class="px-6 py-3 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-admins-body" class="divide-y divide-slate-200">
+                                <!-- JS Filled -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- MODAL INPUT ANGSURAN (ADMIN ONLY) -->
+    <div id="modal-installment" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                <h3 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-hand-holding-dollar text-brand-600 mr-2"></i>Input Transaksi Angsuran</h3>
+                <button onclick="closeInstallmentModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <form id="form-installment" onsubmit="saveInstallment(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Anggota *</label>
+                    <input type="text" id="ins-member-display" readonly class="w-full bg-slate-100 border border-slate-300 font-bold text-slate-800 rounded-xl p-2.5 text-sm outline-none">
+                    <input type="hidden" id="ins-member-id">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Angsuran Ke- *</label>
+                        <input type="number" id="ins-ke" required min="1" max="60" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Bayar *</label>
+                        <input type="date" id="ins-tgl" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Jumlah Angsuran Pokok (Rp) *</label>
+                    <input type="number" id="ins-jml" required min="1000" step="1000" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-bold text-brand-700 outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Bunga Pinjaman (Rp) *</label>
+                    <input type="number" id="ins-bunga" required min="0" step="1000" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-bold text-amber-700 outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" onclick="closeInstallmentModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-medium rounded-xl text-sm hover:bg-slate-300">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white font-semibold rounded-xl text-sm hover:bg-brand-700 shadow-md">Simpan Transaksi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL MEMBER -->
+    <div id="modal-member" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                <h3 id="modal-member-title" class="text-lg font-bold text-slate-800">Tambah Anggota Baru</h3>
+                <button onclick="closeMemberModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <form id="form-member" onsubmit="saveMember(event)" class="space-y-4">
+                <input type="hidden" id="m-id">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Kelompok Anggota *</label>
+                    <select id="m-group-code" required onchange="generateMemberNumber()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500">
+                        <!-- JS populated -->
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">No. Anggota (Prefix 3 Huruf Otomatis)</label>
+                    <input type="text" id="m-no-anggota" readonly required class="w-full bg-slate-100 border border-slate-300 text-slate-700 font-bold rounded-xl p-2.5 text-sm outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap Anggota *</label>
+                    <input type="text" id="m-nama" required placeholder="Contoh: Budi Santoso" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Jumlah Pinjaman (Rp) *</label>
+                        <input type="number" id="m-pinjaman" required min="100000" step="50000" value="12000000" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Tenor (Bulan) *</label>
+                        <input type="number" id="m-tenor" required min="1" max="60" value="12" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Bunga per Bulan (%) *</label>
+                        <input type="number" id="m-bunga" required step="0.1" value="3.5" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Mulai Pinjam *</label>
+                        <input type="date" id="m-tgl-mulai" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" onclick="closeMemberModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-medium rounded-xl text-sm hover:bg-slate-300">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white font-semibold rounded-xl text-sm hover:bg-brand-700 shadow-md">Simpan Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL GROUP -->
+    <div id="modal-group" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                <h3 id="modal-group-title" class="text-lg font-bold text-slate-800">Tambah Kelompok Baru</h3>
+                <button onclick="closeGroupModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <form id="form-group" onsubmit="saveGroup(event)" class="space-y-4">
+                <input type="hidden" id="g-old-code">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Kode Kelompok (3 Huruf Kapital) *</label>
+                    <input type="text" id="g-code" required maxlength="3" uppercase placeholder="Contoh: SBG" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-bold tracking-widest uppercase outline-none focus:ring-2 focus:ring-brand-500">
+                    <p class="text-[10px] text-slate-400 mt-1">3 Huruf pertama No Anggota diambil dari kode kelompok ini.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Kelompok *</label>
+                    <input type="text" id="g-name" required placeholder="Contoh: Kelompok Subang Kota" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Keterangan / Wilayah</label>
+                    <input type="text" id="g-desc" placeholder="Contoh: Wilayah Subang Barat" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" onclick="closeGroupModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-medium rounded-xl text-sm hover:bg-slate-300">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white font-semibold rounded-xl text-sm hover:bg-brand-700 shadow-md">Simpan Kelompok</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ADMIN USER -->
+    <div id="modal-admin-user" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                <h3 id="modal-admin-title" class="text-lg font-bold text-slate-800">Tambah Admin Baru</h3>
+                <button onclick="closeAdminUserModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <form id="form-admin-user" onsubmit="saveAdminUser(event)" class="space-y-4">
+                <input type="hidden" id="adm-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Username Admin *</label>
+                    <input type="text" id="adm-username" required placeholder="Contoh: admin_subang" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap Admin *</label>
+                    <input type="text" id="adm-nama" required placeholder="Contoh: Ahmad Subagja" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Role / Jabatan *</label>
+                    <input type="text" id="adm-role" required placeholder="Contoh: Admin Lapangan / Kasir" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Password *</label>
+                    <div class="relative">
+                        <input type="password" id="adm-password" required placeholder="Masukkan password" class="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none transition text-sm">
+                        <button type="button" onclick="togglePasswordVisibility('adm-password', 'toggle-adm-pwd-icon')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
+                            <i class="fa-solid fa-eye" id="toggle-adm-pwd-icon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2">
+                    <button type="button" onclick="closeAdminUserModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-medium rounded-xl text-sm hover:bg-slate-300">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white font-semibold rounded-xl text-sm hover:bg-brand-700 shadow-md">Simpan Admin</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        /* ==========================================================================
+           DEFAULT SCRIPT URL & INITIAL STATE
+           ========================================================================== */
+        
+        const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzSqmnkh0ubq9_XFcJ-yrl6LmlRwLEoFqALEwnPS_6f3l80k62GOlGqJkjBq8egrZzr/exec";
+
+        let groupsData = [];
+        let membersData = [];
+        let installmentTransactions = [];
+        let adminUsersData = [
+            { id: 1, username: 'admin', nama: 'Admin Utama', role: 'Super Admin', password: 'admin123' }
+        ];
+
+        let currentUser = {
+            isLoggedIn: false,
+            username: '',
+            name: 'Guest',
+            role: ''
+        };
+
+        /* Helper to check if current user is the Super Admin */
+        function isSuperAdmin() {
+            return currentUser.isLoggedIn && currentUser.username.toLowerCase() === 'admin';
+        }
+
+        /* ==========================================================================
+           INITIALIZATION & AUTH GATEWAY
+           ========================================================================== */
+        window.onload = function() {
+            initAuthState();
+        };
+
+        function initAuthState() {
+            loadLocalStorageData();
+
+            const savedAuth = localStorage.getItem('ksp_auth_state');
+            if (savedAuth) {
+                try {
+                    const parsed = JSON.parse(savedAuth);
+                    if (parsed && parsed.isLoggedIn) {
+                        currentUser = parsed;
+                        unlockApplication();
+                        return;
+                    }
+                } catch(e) {
+                    currentUser = { isLoggedIn: false, username: '', name: 'Guest', role: '' };
+                }
+            }
+            
+            // Lock screen by default
+            lockApplication();
+        }
+
+        function unlockApplication() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('app-wrapper').classList.remove('hidden');
+
+            document.getElementById('admin-status-display').textContent = `${currentUser.name} (${currentUser.role || 'Admin'})`;
+
+            // Enforce UI Access Control based on Super Admin privileges
+            const tabBtnAdmins = document.getElementById('tab-btn-admins');
+            if (isSuperAdmin()) {
+                tabBtnAdmins.classList.remove('hidden');
+            } else {
+                tabBtnAdmins.classList.add('hidden');
+            }
+
+            renderGroupFilterOptions();
+            renderGroupsTable();
+            renderMembersTable();
+            renderAdminsTable();
+            updateReportMemberDropdown();
+            renderMemberReceipt();
+
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('m-tgl-mulai').value = today;
+
+            if (DEFAULT_GOOGLE_SCRIPT_URL && DEFAULT_GOOGLE_SCRIPT_URL.includes('script.google.com') && !DEFAULT_GOOGLE_SCRIPT_URL.includes('YOUR_SCRIPT_ID_HERE')) {
+                loadFromGoogleSheets(true);
+            }
+        }
+
+        function lockApplication() {
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('app-wrapper').classList.add('hidden');
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('login-username').value.trim();
+            const pass = document.getElementById('login-password').value.trim();
+
+            const matchedAdmin = adminUsersData.find(a => a.username.toLowerCase() === user.toLowerCase() && a.password === pass);
+
+            if (matchedAdmin) {
+                currentUser = {
+                    isLoggedIn: true,
+                    username: matchedAdmin.username,
+                    name: matchedAdmin.nama,
+                    role: matchedAdmin.role
+                };
+                localStorage.setItem('ksp_auth_state', JSON.stringify(currentUser));
+
+                unlockApplication();
+                showToast(`Login berhasil! Selamat datang ${matchedAdmin.nama}.`);
+            } else {
+                showToast('Username atau Password Admin tidak terdaftar!', 'error');
+            }
+        }
+
+        function handleLogout() {
+            if (confirm('Apakah Anda yakin ingin keluar dari aplikasi?')) {
+                currentUser = { isLoggedIn: false, username: '', name: 'Guest', role: '' };
+                localStorage.removeItem('ksp_auth_state');
+                lockApplication();
+                showToast('Anda telah keluar dari aplikasi.', 'info');
+            }
+        }
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const pwdInput = document.getElementById(inputId);
+            const pwdIcon = document.getElementById(iconId);
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                pwdIcon.className = 'fa-solid fa-eye-slash';
+            } else {
+                pwdInput.type = 'password';
+                pwdIcon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        /* ==========================================================================
+           LOCAL STORAGE & TOAST HELPERS
+           ========================================================================== */
+        function loadLocalStorageData() {
+            const savedGroups = localStorage.getItem('ksp_groups_data');
+            const savedMembers = localStorage.getItem('ksp_members_data');
+            const savedInstallments = localStorage.getItem('ksp_installments_data');
+            const savedAdmins = localStorage.getItem('ksp_admin_users');
+            
+            if (savedGroups) groupsData = JSON.parse(savedGroups);
+            if (savedMembers) membersData = JSON.parse(savedMembers);
+            if (savedInstallments) installmentTransactions = JSON.parse(savedInstallments);
+            if (savedAdmins) adminUsersData = JSON.parse(savedAdmins);
+            
+            // Re-ensure default super admin exists
+            if (!adminUsersData.some(a => a.username === 'admin')) {
+                adminUsersData.unshift({ id: 1, username: 'admin', nama: 'Admin Utama', role: 'Super Admin', password: 'admin123' });
+            }
+        }
+
+        function saveDataToLocal() {
+            localStorage.setItem('ksp_groups_data', JSON.stringify(groupsData));
+            localStorage.setItem('ksp_members_data', JSON.stringify(membersData));
+            localStorage.setItem('ksp_installments_data', JSON.stringify(installmentTransactions));
+            localStorage.setItem('ksp_admin_users', JSON.stringify(adminUsersData));
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgColor = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-600' : 'bg-slate-800';
+            const icon = type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-info-circle';
+
+            toast.className = `${bgColor} text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        /* ==========================================================================
+           GOOGLE SHEETS SYNC LOGIC
+           ========================================================================== */
+        function syncToGoogleSheets() {
+            if (!DEFAULT_GOOGLE_SCRIPT_URL || DEFAULT_GOOGLE_SCRIPT_URL.includes('YOUR_SCRIPT_ID_HERE')) {
+                showToast('Isi variabel DEFAULT_GOOGLE_SCRIPT_URL pada index.html terlebih dahulu!', 'error');
+                return;
+            }
+
+            showToast('Proses mengirim data...', 'info');
+
+            const payload = JSON.stringify({
+                action: 'SYNC_ALL',
+                groups: groupsData,
+                members: membersData,
+                installments: installmentTransactions,
+                admins: adminUsersData
+            });
+
+            fetch(DEFAULT_GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: payload
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.result === 'success') {
+                    showToast('Sinkronisasi data Berhasil!');
+                } else {
+                    showToast('Gagal sinkronisasi: ' + (data.message || 'Error tidak diketahui'), 'error');
+                }
+            })
+            .catch(err => {
+                fetch(DEFAULT_GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: payload
+                })
+                .then(() => {
+                    showToast('Data berhasil dikirim !');
+                })
+                .catch(fallbackErr => {
+                    showToast('Gagal terhubung ke Database: ' + fallbackErr.message, 'error');
+                });
+            });
+        }
+
+        function loadFromGoogleSheets(silent = false) {
+            if (!DEFAULT_GOOGLE_SCRIPT_URL || DEFAULT_GOOGLE_SCRIPT_URL.includes('YOUR_SCRIPT_ID_HERE')) {
+                if (!silent) showToast('Konfigurasi DEFAULT_GOOGLE_SCRIPT_URL belum disetel di index.html.', 'error');
+                return;
+            }
+
+            if (!silent) showToast('Mengambil data dari Google Sheets...', 'info');
+
+            fetch(DEFAULT_GOOGLE_SCRIPT_URL)
+            .then(res => res.json())
+            .then(data => {
+                if (data.result === 'success') {
+                    if (data.groups && Array.isArray(data.groups)) groupsData = data.groups;
+                    if (data.members && Array.isArray(data.members)) membersData = data.members;
+                    if (data.installments && Array.isArray(data.installments)) installmentTransactions = data.installments;
+                    if (data.admins && Array.isArray(data.admins) && data.admins.length > 0) adminUsersData = data.admins;
+
+                    saveDataToLocal();
+                    renderGroupFilterOptions();
+                    renderGroupsTable();
+                    renderMembersTable();
+                    renderAdminsTable();
+                    updateReportMemberDropdown();
+                    renderMemberReceipt();
+                    if (!silent) showToast('Data berhasil dimuat dari Google Sheets!');
+                } else if (!silent) {
+                    showToast('Gagal memuat: ' + (data.message || 'Error tidak diketahui'), 'error');
+                }
+            })
+            .catch(err => {
+                if (!silent) showToast('Gagal memuat dari Google Sheets: ' + err.message, 'error');
+            });
+        }
+
+        /* ==========================================================================
+           TAB SWITCHING & REPORT FILTERING
+           ========================================================================== */
+        function switchTab(tabName) {
+            const viewReport = document.getElementById('view-report');
+            const viewMembers = document.getElementById('view-members');
+            const viewGroups = document.getElementById('view-groups');
+            const viewAdmins = document.getElementById('view-admins');
+
+            const tabBtnReport = document.getElementById('tab-btn-report');
+            const tabBtnMembers = document.getElementById('tab-btn-members');
+            const tabBtnGroups = document.getElementById('tab-btn-groups');
+            const tabBtnAdmins = document.getElementById('tab-btn-admins');
+
+            // Access check for admins management tab
+            if (tabName === 'admins' && !isSuperAdmin()) {
+                showToast('Akses Ditolak! Hanya Admin Utama yang dapat mengelola pengguna admin.', 'error');
+                return;
+            }
+
+            const inactiveClass = "text-slate-600 hover:text-slate-900";
+            const activeClass = "bg-white text-brand-700 shadow-sm font-semibold";
+
+            [tabBtnReport, tabBtnMembers, tabBtnGroups, tabBtnAdmins].forEach(btn => {
+                btn.className = btn.className.replace(activeClass, '').replace(inactiveClass, '') + ' ' + inactiveClass;
+            });
+
+            viewReport.classList.add('hidden');
+            viewMembers.classList.add('hidden');
+            viewGroups.classList.add('hidden');
+            viewAdmins.classList.add('hidden');
+
+            if (tabName === 'report') {
+                viewReport.classList.remove('hidden');
+                tabBtnReport.className = tabBtnReport.className.replace(inactiveClass, '') + ' ' + activeClass;
+                renderMemberReceipt();
+            } else if (tabName === 'members') {
+                viewMembers.classList.remove('hidden');
+                tabBtnMembers.className = tabBtnMembers.className.replace(inactiveClass, '') + ' ' + activeClass;
+                renderMembersTable();
+            } else if (tabName === 'groups') {
+                viewGroups.classList.remove('hidden');
+                tabBtnGroups.className = tabBtnGroups.className.replace(inactiveClass, '') + ' ' + activeClass;
+                renderGroupsTable();
+            } else if (tabName === 'admins') {
+                viewAdmins.classList.remove('hidden');
+                tabBtnAdmins.className = tabBtnAdmins.className.replace(inactiveClass, '') + ' ' + activeClass;
+                renderAdminsTable();
+            }
+        }
+
+        function renderGroupFilterOptions() {
+            const filterSelect = document.getElementById('filter-group');
+            const currentVal = filterSelect.value || 'ALL';
+            
+            filterSelect.innerHTML = '<option value="ALL">-- Semua Kelompok --</option>';
+            
+            groupsData.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g.code;
+                opt.textContent = `[${g.code}] ${g.name}`;
+                filterSelect.appendChild(opt);
+            });
+
+            filterSelect.value = currentVal;
+        }
+
+        function handleGroupFilterChange() {
+            updateReportMemberDropdown();
+            renderMembersTable();
+            renderMemberReceipt();
+        }
+
+        function updateReportMemberDropdown() {
+            const selectMember = document.getElementById('select-member-report');
+            const selectedGroup = document.getElementById('filter-group').value;
+            
+            selectMember.innerHTML = '';
+
+            let filtered = membersData;
+            if (selectedGroup !== 'ALL') {
+                filtered = membersData.filter(m => m.groupCode === selectedGroup);
+            }
+
+            if (filtered.length === 0) {
+                selectMember.innerHTML = '<option value="">-- Tidak Ada Anggota --</option>';
+                return;
+            }
+
+            filtered.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = `${m.noAnggota} - ${m.nama}`;
+                selectMember.appendChild(opt);
+            });
+        }
+
+        function formatRupiah(num) {
+            return 'Rp ' + Math.round(Number(num) || 0).toLocaleString('id-ID');
+        }
+
+        function formatDateID(dateStr) {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+
+        function renderMemberReceipt() {
+            const selectMember = document.getElementById('select-member-report');
+            const selectedId = parseInt(selectMember ? selectMember.value : '');
+            const member = membersData.find(m => m.id === selectedId);
+
+            if (!member) {
+                document.getElementById('r-no-anggota').textContent = '-';
+                document.getElementById('r-nama').textContent = '-';
+                document.getElementById('r-jml-pinjaman').textContent = 'Rp 0';
+                document.getElementById('r-tenor').textContent = '0 Bulan';
+                document.getElementById('r-bunga-bulan').textContent = '0 %';
+                document.getElementById('r-angsuran-body').innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-6 text-slate-400 italic">Database Kosong / Pilih Anggota. Tambah kelompok dan anggota via menu Admin.</td>
+                    </tr>
+                `;
+                document.getElementById('r-sign-anggota').textContent = '( nama anggota )';
+                document.getElementById('r-sign-admin').textContent = `( ${currentUser.name} )`;
+                return;
+            }
+
+            const pinjaman = Number(member.pinjaman) || 0;
+            const tenor = Number(member.tenor) || 12;
+            const bungaRate = Number(member.bunga) || 0;
+
+            document.getElementById('r-no-anggota').textContent = member.noAnggota;
+            document.getElementById('r-nama').textContent = member.nama;
+            document.getElementById('r-jml-pinjaman').textContent = formatRupiah(pinjaman);
+            document.getElementById('r-tenor').textContent = `${tenor} Bulan`;
+            document.getElementById('r-bunga-bulan').textContent = `${bungaRate} % (Flat)`;
+            document.getElementById('r-sign-anggota').textContent = `( ${member.nama} )`;
+            document.getElementById('r-sign-admin').textContent = `( ${currentUser.name} )`;
+
+            const now = new Date();
+            document.getElementById('r-date-location').textContent = `Subang, ${formatDateID(now)}`;
+
+            const memberInstallments = installmentTransactions
+                .filter(ins => ins.memberId === member.id)
+                .sort((a, b) => a.angsuranKe - b.angsuranKe);
+
+            let tbodyHtml = '';
+
+            if (memberInstallments.length === 0) {
+                tbodyHtml = `
+                    <tr>
+                        <td colspan="5" class="text-center py-6 text-slate-400 italic">Belum ada transaksi angsuran yang diinput. Klik "+ Input Angsuran (Admin)" untuk mencatat pembayaran.</td>
+                    </tr>
+                `;
+            } else {
+                let sumJmlAngsuran = 0;
+                let sumBungaPinjaman = 0;
+                let lastSisaPinjaman = pinjaman;
+
+                memberInstallments.forEach(ins => {
+                    sumJmlAngsuran += Number(ins.jmlAngsuran) || 0;
+                    sumBungaPinjaman += Number(ins.bungaPinjaman) || 0;
+                    lastSisaPinjaman = ins.sisaPinjaman;
+
+                    tbodyHtml += `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="text-center font-bold">${ins.angsuranKe}</td>
+                            <td class="text-center">${formatDateID(ins.tglAngsuran)}</td>
+                            <td class="text-right font-semibold">${formatRupiah(ins.jmlAngsuran)}</td>
+                            <td class="text-right">${formatRupiah(ins.bungaPinjaman)}</td>
+                            <td class="text-right font-medium">${formatRupiah(ins.sisaPinjaman)}</td>
+                        </tr>
+                    `;
+                });
+
+                tbodyHtml += `
+                    <tr class="receipt-table-header font-bold">
+                        <td colspan="2" class="text-center py-2 uppercase">Total Terbayar</td>
+                        <td class="text-right text-brand-800">${formatRupiah(sumJmlAngsuran)}</td>
+                        <td class="text-right text-amber-800">${formatRupiah(sumBungaPinjaman)}</td>
+                        <td class="text-right text-slate-900">${formatRupiah(lastSisaPinjaman)}</td>
+                    </tr>
+                `;
+            }
+
+            document.getElementById('r-angsuran-body').innerHTML = tbodyHtml;
+        }
+
+        /* ==========================================================================
+           INSTALLMENT TRANSACTIONS LOGIC
+           ========================================================================== */
+        function openInstallmentModal() {
+            const selectMember = document.getElementById('select-member-report');
+            const selectedId = parseInt(selectMember ? selectMember.value : '');
+            const member = membersData.find(m => m.id === selectedId);
+
+            if (!member) {
+                showToast('Pilih anggota terlebih dahulu sebelum menginput angsuran!', 'error');
+                return;
+            }
+
+            const existingCount = installmentTransactions.filter(ins => ins.memberId === member.id).length;
+            const nextAngsuranKe = existingCount + 1;
+
+            const pokokPerBulan = Math.round(Number(member.pinjaman) / Number(member.tenor));
+            const bungaPerBulan = Math.round(Number(member.pinjaman) * (Number(member.bunga) / 100));
+
+            document.getElementById('ins-member-id').value = member.id;
+            document.getElementById('ins-member-display').value = `${member.noAnggota} - ${member.nama}`;
+            document.getElementById('ins-ke').value = nextAngsuranKe;
+            document.getElementById('ins-tgl').value = new Date().toISOString().split('T')[0];
+            document.getElementById('ins-jml').value = pokokPerBulan;
+            document.getElementById('ins-bunga').value = bungaPerBulan;
+
+            document.getElementById('modal-installment').classList.remove('hidden');
+        }
+
+        function closeInstallmentModal() {
+            document.getElementById('modal-installment').classList.add('hidden');
+        }
+
+        function saveInstallment(e) {
+            e.preventDefault();
+
+            const memberId = parseInt(document.getElementById('ins-member-id').value);
+            const angsuranKe = parseInt(document.getElementById('ins-ke').value);
+            const tglAngsuran = document.getElementById('ins-tgl').value;
+            const jmlAngsuran = parseFloat(document.getElementById('ins-jml').value);
+            const bungaPinjaman = parseFloat(document.getElementById('ins-bunga').value);
+
+            const member = membersData.find(m => m.id === memberId);
+            if (!member) return;
+
+            const previousIns = installmentTransactions
+                .filter(ins => ins.memberId === memberId && ins.angsuranKe < angsuranKe)
+                .sort((a, b) => b.angsuranKe - a.angsuranKe)[0];
+
+            let previousBalance = previousIns ? previousIns.sisaPinjaman : Number(member.pinjaman);
+            let sisaPinjaman = Math.max(0, previousBalance - jmlAngsuran);
+
+            const newId = Date.now();
+            installmentTransactions.push({
+                id: newId,
+                memberId,
+                angsuranKe,
+                tglAngsuran,
+                jmlAngsuran,
+                bungaPinjaman,
+                sisaPinjaman
+            });
+
+            saveDataToLocal();
+            closeInstallmentModal();
+            renderMemberReceipt();
+            showToast(`Transaksi Angsuran ke-${angsuranKe} berhasil dicatat!`);
+        }
+
+        /* ==========================================================================
+           MEMBER CRUD LOGIC
+           ========================================================================== */
+        function renderMembersTable() {
+            const groupFilter = document.getElementById('filter-group').value;
+            const tbody = document.getElementById('table-members-body');
+            tbody.innerHTML = '';
+
+            let filtered = membersData;
+            if (groupFilter !== 'ALL') {
+                filtered = membersData.filter(m => m.groupCode === groupFilter);
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-6 text-slate-400 italic">Data Anggota Masih Kosong. Klik "+ Tambah Anggota" untuk memasukkan data.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            filtered.forEach(m => {
+                const groupObj = groupsData.find(g => g.code === m.groupCode);
+                const groupName = groupObj ? groupObj.name : m.groupCode;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-bold text-brand-700">${m.noAnggota}</td>
+                    <td class="px-4 py-3 font-semibold text-slate-800">${m.nama}</td>
+                    <td class="px-4 py-3 text-xs"><span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md font-bold">${m.groupCode}</span> ${groupName}</td>
+                    <td class="px-4 py-3 font-semibold">${formatRupiah(m.pinjaman)}</td>
+                    <td class="px-4 py-3">${m.tenor} Bln</td>
+                    <td class="px-4 py-3">${m.bunga}%</td>
+                    <td class="px-4 py-3 text-xs">${formatDateID(m.tglMulai)}</td>
+                    <td class="px-4 py-3 text-center space-x-1">
+                        <button onclick="editMember(${m.id})" class="p-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg text-xs font-semibold transition">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteMember(${m.id})" class="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg text-xs font-semibold transition">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openMemberModal(isEdit = false) {
+            if (groupsData.length === 0) {
+                showToast('Buat Kelompok terlebih dahulu sebelum menambah anggota!', 'error');
+                switchTab('groups');
+                openGroupModal();
+                return;
+            }
+
+            const mGroupSelect = document.getElementById('m-group-code');
+            mGroupSelect.innerHTML = '';
+            groupsData.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g.code;
+                opt.textContent = `[${g.code}] ${g.name}`;
+                mGroupSelect.appendChild(opt);
+            });
+
+            if (!isEdit) {
+                document.getElementById('modal-member-title').textContent = 'Tambah Anggota Baru';
+                document.getElementById('m-id').value = '';
+                document.getElementById('m-nama').value = '';
+                document.getElementById('m-pinjaman').value = 12000000;
+                document.getElementById('m-tenor').value = 12;
+                document.getElementById('m-bunga').value = 3.5;
+                document.getElementById('m-tgl-mulai').value = new Date().toISOString().split('T')[0];
+                generateMemberNumber();
+            }
+
+            document.getElementById('modal-member').classList.remove('hidden');
+        }
+
+        function closeMemberModal() {
+            document.getElementById('modal-member').classList.add('hidden');
+        }
+
+        function generateMemberNumber() {
+            const groupCode = document.getElementById('m-group-code').value || 'KSP';
+            const isEdit = document.getElementById('m-id').value !== '';
+
+            if (isEdit) return;
+
+            const count = membersData.filter(m => m.groupCode === groupCode).length + 1;
+            const pad = String(count).padStart(3, '0');
+            document.getElementById('m-no-anggota').value = `${groupCode}-${pad}`;
+        }
+
+        function saveMember(e) {
+            e.preventDefault();
+
+            const id = document.getElementById('m-id').value;
+            const groupCode = document.getElementById('m-group-code').value;
+            const noAnggota = document.getElementById('m-no-anggota').value;
+            const nama = document.getElementById('m-nama').value.trim();
+            const pinjaman = parseFloat(document.getElementById('m-pinjaman').value);
+            const tenor = parseInt(document.getElementById('m-tenor').value);
+            const bunga = parseFloat(document.getElementById('m-bunga').value);
+            const tglMulai = document.getElementById('m-tgl-mulai').value;
+
+            if (id) {
+                const index = membersData.findIndex(m => m.id === parseInt(id));
+                if (index !== -1) {
+                    membersData[index] = { ...membersData[index], groupCode, nama, pinjaman, tenor, bunga, tglMulai };
+                    showToast('Data Anggota berhasil diperbarui.');
+                }
+            } else {
+                const newId = Date.now();
+                membersData.push({
+                    id: newId,
+                    noAnggota,
+                    nama,
+                    groupCode,
+                    pinjaman,
+                    tenor,
+                    bunga,
+                    tglMulai
+                });
+                showToast('Anggota baru berhasil ditambahkan.');
+            }
+
+            saveDataToLocal();
+            closeMemberModal();
+            renderMembersTable();
+            renderGroupsTable();
+            updateReportMemberDropdown();
+            renderMemberReceipt();
+        }
+
+        function editMember(id) {
+            const member = membersData.find(m => m.id === id);
+            if (!member) return;
+
+            openMemberModal(true);
+            document.getElementById('modal-member-title').textContent = 'Edit Data Anggota';
+            document.getElementById('m-id').value = member.id;
+            document.getElementById('m-group-code').value = member.groupCode;
+            document.getElementById('m-no-anggota').value = member.noAnggota;
+            document.getElementById('m-nama').value = member.nama;
+            document.getElementById('m-pinjaman').value = member.pinjaman;
+            document.getElementById('m-tenor').value = member.tenor;
+            document.getElementById('m-bunga').value = member.bunga;
+            document.getElementById('m-tgl-mulai').value = member.tglMulai || new Date().toISOString().split('T')[0];
+        }
+
+        function deleteMember(id) {
+            if (confirm('Apakah Anda yakin ingin menghapus data anggota ini beserta riwayat angsurannya?')) {
+                membersData = membersData.filter(m => m.id !== id);
+                installmentTransactions = installmentTransactions.filter(ins => ins.memberId !== id);
+                saveDataToLocal();
+                showToast('Data Anggota berhasil dihapus.');
+                renderMembersTable();
+                renderGroupsTable();
+                updateReportMemberDropdown();
+                renderMemberReceipt();
+            }
+        }
+
+        /* ==========================================================================
+           GROUPS CRUD LOGIC
+           ========================================================================== */
+        function renderGroupsTable() {
+            const tbody = document.getElementById('table-groups-body');
+            tbody.innerHTML = '';
+
+            if (groupsData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-6 text-slate-400 italic">Data Kelompok Masih Kosong. Klik "+ Tambah Kelompok" untuk membuat kelompok baru.</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            groupsData.forEach(g => {
+                const countMembers = membersData.filter(m => m.groupCode === g.code).length;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-bold text-brand-800 tracking-wider">${g.code}</td>
+                    <td class="px-6 py-4 font-semibold text-slate-800">${g.name}</td>
+                    <td class="px-6 py-4 text-slate-500">${g.desc || '-'}</td>
+                    <td class="px-6 py-4 font-bold"><span class="bg-brand-50 text-brand-700 px-3 py-1 rounded-full border border-brand-200 text-xs">${countMembers} Anggota</span></td>
+                    <td class="px-6 py-4 text-center space-x-1">
+                        <button onclick="editGroup('${g.code}')" class="p-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg text-xs font-semibold transition">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteGroup('${g.code}')" class="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg text-xs font-semibold transition">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openGroupModal(isEdit = false) {
+            if (!isEdit) {
+                document.getElementById('modal-group-title').textContent = 'Tambah Kelompok Baru';
+                document.getElementById('g-old-code').value = '';
+                document.getElementById('g-code').value = '';
+                document.getElementById('g-code').disabled = false;
+                document.getElementById('g-name').value = '';
+                document.getElementById('g-desc').value = '';
+            }
+
+            document.getElementById('modal-group').classList.remove('hidden');
+        }
+
+        function closeGroupModal() {
+            document.getElementById('modal-group').classList.add('hidden');
+        }
+
+        function saveGroup(e) {
+            e.preventDefault();
+
+            const oldCode = document.getElementById('g-old-code').value;
+            const code = document.getElementById('g-code').value.trim().toUpperCase();
+            const name = document.getElementById('g-name').value.trim();
+            const desc = document.getElementById('g-desc').value.trim();
+
+            if (code.length !== 3) {
+                showToast('Kode Kelompok HARUS persis 3 huruf!', 'error');
+                return;
+            }
+
+            if (oldCode) {
+                const index = groupsData.findIndex(g => g.code === oldCode);
+                if (index !== -1) {
+                    groupsData[index] = { code: oldCode, name, desc };
+                    showToast('Data Kelompok berhasil diperbarui.');
+                }
+            } else {
+                if (groupsData.some(g => g.code === code)) {
+                    showToast('Kode Kelompok ini sudah digunakan!', 'error');
+                    return;
+                }
+                groupsData.push({ code, name, desc });
+                showToast('Kelompok Baru berhasil ditambahkan.');
+            }
+
+            saveDataToLocal();
+            closeGroupModal();
+            renderGroupsTable();
+            renderGroupFilterOptions();
+        }
+
+        function editGroup(code) {
+            const group = groupsData.find(g => g.code === code);
+            if (!group) return;
+
+            openGroupModal(true);
+            document.getElementById('modal-group-title').textContent = 'Edit Kelompok';
+            document.getElementById('g-old-code').value = group.code;
+            document.getElementById('g-code').value = group.code;
+            document.getElementById('g-code').disabled = true;
+            document.getElementById('g-name').value = group.name;
+            document.getElementById('g-desc').value = group.desc || '';
+        }
+
+        function deleteGroup(code) {
+            const memberCount = membersData.filter(m => m.groupCode === code).length;
+            if (memberCount > 0) {
+                showToast(`Tidak bisa menghapus! Masih ada ${memberCount} anggota di kelompok ini.`, 'error');
+                return;
+            }
+
+            if (confirm(`Apakah Anda yakin ingin menghapus Kelompok [${code}]?`)) {
+                groupsData = groupsData.filter(g => g.code !== code);
+                saveDataToLocal();
+                showToast('Kelompok berhasil dihapus.');
+                renderGroupsTable();
+                renderGroupFilterOptions();
+            }
+        }
+
+        /* ==========================================================================
+           ADMIN USERS CRUD LOGIC (RESTRICTED TO SUPER ADMIN ONLY)
+           ========================================================================== */
+        function renderAdminsTable() {
+            const tbody = document.getElementById('table-admins-body');
+            tbody.innerHTML = '';
+
+            if (adminUsersData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-6 text-slate-400 italic">Belum ada akun admin. Klik "+ Tambah Admin Baru".</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            adminUsersData.forEach(adm => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                
+                const isSuperAdminAccount = adm.username === 'admin';
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-bold text-slate-800">
+                        <i class="fa-solid fa-user-shield text-brand-600 mr-2"></i>${adm.username}
+                    </td>
+                    <td class="px-6 py-4 font-semibold text-slate-700">${adm.nama}</td>
+                    <td class="px-6 py-4 text-xs font-semibold">
+                        <span class="${isSuperAdminAccount ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'} px-2.5 py-1 rounded-full border border-slate-200">
+                            ${adm.role || 'Admin'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center space-x-1">
+                        <button onclick="editAdminUser(${adm.id})" class="p-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg text-xs font-semibold transition">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        ${!isSuperAdminAccount ? `
+                        <button onclick="deleteAdminUser(${adm.id})" class="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg text-xs font-semibold transition">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                        ` : '<span class="text-xs text-slate-400 italic px-2">Protected</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openAdminUserModal(isEdit = false) {
+            if (!isSuperAdmin()) {
+                showToast('Hanya Admin Utama yang berhak mengelola akun admin!', 'error');
+                return;
+            }
+
+            if (!isEdit) {
+                document.getElementById('modal-admin-title').textContent = 'Tambah Admin Baru';
+                document.getElementById('adm-id').value = '';
+                document.getElementById('adm-username').value = '';
+                document.getElementById('adm-username').disabled = false;
+                document.getElementById('adm-nama').value = '';
+                document.getElementById('adm-role').value = 'Admin Kasir';
+                document.getElementById('adm-password').value = '';
+            }
+            document.getElementById('modal-admin-user').classList.remove('hidden');
+        }
+
+        function closeAdminUserModal() {
+            document.getElementById('modal-admin-user').classList.add('hidden');
+        }
+
+        function saveAdminUser(e) {
+            e.preventDefault();
+
+            if (!isSuperAdmin()) {
+                showToast('Akses Ditolak! Hanya Admin Utama yang berhak menyimpan akun admin.', 'error');
+                closeAdminUserModal();
+                return;
+            }
+
+            const id = document.getElementById('adm-id').value;
+            const username = document.getElementById('adm-username').value.trim().toLowerCase();
+            const nama = document.getElementById('adm-nama').value.trim();
+            const role = document.getElementById('adm-role').value.trim();
+            const password = document.getElementById('adm-password').value.trim();
+
+            if (id) {
+                const idx = adminUsersData.findIndex(a => a.id === parseInt(id));
+                if (idx !== -1) {
+                    adminUsersData[idx] = { ...adminUsersData[idx], nama, role, password };
+                    showToast('Akun Admin berhasil diperbarui!');
+                }
+            } else {
+                if (adminUsersData.some(a => a.username.toLowerCase() === username)) {
+                    showToast('Username admin tersebut sudah digunakan!', 'error');
+                    return;
+                }
+
+                const newId = Date.now();
+                adminUsersData.push({ id: newId, username, nama, role, password });
+                showToast('Akun Admin Baru berhasil ditambahkan!');
+            }
+
+            saveDataToLocal();
+            closeAdminUserModal();
+            renderAdminsTable();
+        }
+
+        function editAdminUser(id) {
+            if (!isSuperAdmin()) {
+                showToast('Hanya Admin Utama yang berhak merubah data admin!', 'error');
+                return;
+            }
+
+            const adm = adminUsersData.find(a => a.id === id);
+            if (!adm) return;
+
+            openAdminUserModal(true);
+            document.getElementById('modal-admin-title').textContent = 'Edit Akun Admin';
+            document.getElementById('adm-id').value = adm.id;
+            document.getElementById('adm-username').value = adm.username;
+            document.getElementById('adm-username').disabled = true;
+            document.getElementById('adm-nama').value = adm.nama;
+            document.getElementById('adm-role').value = adm.role || 'Admin';
+            document.getElementById('adm-password').value = adm.password;
+        }
+
+        function deleteAdminUser(id) {
+            if (!isSuperAdmin()) {
+                showToast('Hanya Admin Utama yang berhak menghapus akun admin!', 'error');
+                return;
+            }
+
+            const adm = adminUsersData.find(a => a.id === id);
+            if (!adm) return;
+
+            if (adm.username === 'admin') {
+                showToast('Super Admin bawaan tidak dapat dihapus!', 'error');
+                return;
+            }
+
+            if (confirm(`Apakah Anda yakin ingin menghapus akun admin [${adm.username}]?`)) {
+                adminUsersData = adminUsersData.filter(a => a.id !== id);
+                saveDataToLocal();
+                showToast('Akun Admin berhasil dihapus.');
+                renderAdminsTable();
+            }
+        }
+    </script>
+</body>
+</html>
